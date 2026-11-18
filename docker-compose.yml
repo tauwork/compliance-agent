@@ -1,0 +1,43 @@
+# 政策合规智能体 MVP · 部署编排（单体：app + mysql 两容器）
+# 启动：docker compose up -d --build
+# 访问：http://localhost:8080 （API）；前端开发模式见 web/README
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: pcm-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: pcm
+      MYSQL_USER: pcm
+      MYSQL_PASSWORD: pcm123456
+      TZ: Asia/Shanghai
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - pcm-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123456"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    container_name: pcm-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DB: pcm
+      MYSQL_USER: pcm
+      MYSQL_PASSWORD: pcm123456
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      TZ: Asia/Shanghai
+    ports:
+      - "8080:8080"
+
+volumes:
+  pcm-mysql-data:
