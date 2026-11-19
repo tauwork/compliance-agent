@@ -1,6 +1,7 @@
 package com.pcmvp.policy.domain;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Getter;
@@ -20,6 +21,8 @@ public class Policy {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    private Long libraryId;
+
     private String title;
 
     private String docNo;
@@ -27,6 +30,12 @@ public class Policy {
     private String issuer;
 
     private LocalDate effectDate;
+
+    private LocalDate expireDate;
+
+    /** effective / expired，按失效日期计算，不入库。 */
+    @TableField(exist = false)
+    private String validity;
 
     private String version;
 

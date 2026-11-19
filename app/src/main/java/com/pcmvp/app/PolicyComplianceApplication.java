@@ -10,7 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication(scanBasePackages = "com.pcmvp")
 @MapperScan({"com.pcmvp.rule.mapper", "com.pcmvp.audit.mapper", "com.pcmvp.remediation.mapper",
-        "com.pcmvp.policy.mapper", "com.pcmvp.agent.mapper", "com.pcmvp.llm"})
+        "com.pcmvp.policy.mapper", "com.pcmvp.agent.mapper", "com.pcmvp.llm", "com.pcmvp.system.mapper"})
 public class PolicyComplianceApplication {
 
     public static void main(String[] args) {

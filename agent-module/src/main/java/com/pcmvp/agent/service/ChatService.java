@@ -5,9 +5,11 @@ import com.pcmvp.llm.DeepSeekClient;
 import com.pcmvp.policy.domain.Clause;
 import com.pcmvp.policy.domain.Obligation;
 import com.pcmvp.policy.domain.Policy;
+import com.pcmvp.policy.domain.PolicyQa;
 import com.pcmvp.policy.mapper.ClauseMapper;
 import com.pcmvp.policy.mapper.ObligationMapper;
 import com.pcmvp.policy.mapper.PolicyMapper;
+import com.pcmvp.policy.mapper.PolicyQaMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -26,24 +28,27 @@ public class ChatService {
     private final ClauseMapper clauseMapper;
     private final PolicyMapper policyMapper;
     private final ObligationMapper obligationMapper;
+    private final PolicyQaMapper qaMapper;
     private final DeepSeekClient llm;
 
     public ChatService(ClauseMapper clauseMapper, PolicyMapper policyMapper,
-                       ObligationMapper obligationMapper, DeepSeekClient llm) {
+                       ObligationMapper obligationMapper, PolicyQaMapper qaMapper, DeepSeekClient llm) {
         this.clauseMapper = clauseMapper;
         this.policyMapper = policyMapper;
         this.obligationMapper = obligationMapper;
+        this.qaMapper = qaMapper;
         this.llm = llm;
     }
 
     public Map<String, Object> chat(String question) {
         // 1. 关键词召回（按条款内容LIKE，取前5条）
         List<Clause> hits = recall(question);
+        List<PolicyQa> qaHits = recallQa(question);
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("question", question);
 
-        if (hits.isEmpty()) {
+        if (hits.isEmpty() && qaHits.isEmpty()) {
             out.put("answer", "未在政策库中检索到相关条款。请换一个问法，或联系合规部门确认。");
             out.put("sources", List.of());
             return out;
@@ -66,6 +71,13 @@ public class ChatService {
                         .append("）\n");
             }
         }
+        for (PolicyQa qa : qaHits) {
+            Policy p = policyMapper.selectById(qa.getPolicyId());
+            String policyTitle = p == null ? "" : p.getTitle();
+            sources.add(Map.of("clauseNo", "问答", "policy", policyTitle, "content", qa.getAnswer()));
+            ctx.append("【").append(policyTitle).append(" 问答】问：").append(qa.getQuestion())
+                    .append(" 答：").append(qa.getAnswer()).append("\n");
+        }
 
         String answer;
         String mode = "deepseek";
@@ -83,11 +95,16 @@ public class ChatService {
             answer = llmOut;
         } else {
             mode = "demo-fallback";
-            // 降级：首条命中条款原文直接作答（100%可溯源）
-            Clause top = hits.get(0);
-            Policy p = policyMapper.selectById(top.getPolicyId());
-            answer = "根据《" + (p == null ? "" : p.getTitle()) + "》" + top.getClauseNo() + "："
-                    + top.getContent();
+            if (!hits.isEmpty()) {
+                Clause top = hits.get(0);
+                Policy p = policyMapper.selectById(top.getPolicyId());
+                answer = "根据《" + (p == null ? "" : p.getTitle()) + "》" + top.getClauseNo() + "："
+                        + top.getContent();
+            } else {
+                PolicyQa top = qaHits.get(0);
+                Policy p = policyMapper.selectById(top.getPolicyId());
+                answer = "根据《" + (p == null ? "" : p.getTitle()) + "》问答：" + top.getAnswer();
+            }
         }
         out.put("answer", answer);
         out.put("sources", sources);
@@ -118,6 +135,26 @@ public class ChatService {
         return score.entrySet().stream()
                 .sorted((a, b) -> b.getValue() - a.getValue())
                 .limit(5)
+                .map(Map.Entry::getKey)
+                .toList();
+    }
+
+    private List<PolicyQa> recallQa(String q) {
+        List<String> keys = new ArrayList<>();
+        for (String w : List.of("进场", "挂牌", "评估", "决议", "担保", "租赁", "有效期", "竞价", "租金", "反担保")) {
+            if (q.contains(w)) keys.add(w);
+        }
+        if (keys.isEmpty() && q.length() >= 2) keys.add(q.substring(0, Math.min(4, q.length())));
+        Map<PolicyQa, Integer> score = new LinkedHashMap<>();
+        for (String k : keys) {
+            for (PolicyQa qa : qaMapper.selectList(new LambdaQueryWrapper<PolicyQa>()
+                    .like(PolicyQa::getQuestion, k).or().like(PolicyQa::getAnswer, k).last("LIMIT 10"))) {
+                score.merge(qa, 1, Integer::sum);
+            }
+        }
+        return score.entrySet().stream()
+                .sorted((a, b) -> b.getValue() - a.getValue())
+                .limit(3)
                 .map(Map.Entry::getKey)
                 .toList();
     }

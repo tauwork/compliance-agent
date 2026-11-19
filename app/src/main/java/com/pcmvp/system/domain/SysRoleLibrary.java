@@ -1,0 +1,22 @@
+package com.pcmvp.system.domain;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@TableName("sys_role_library")
+public class SysRoleLibrary {
+
+    @TableId(type = IdType.AUTO)
+    private Long id;
+
+    private Long roleId;
+
+    private Long libraryId;
+}

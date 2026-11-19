@@ -20,17 +20,20 @@ public class AuditController {
     private final RiskEventService riskEventService;
     private final StatsService statsService;
     private final HashChainService chainService;
+    private final com.pcmvp.audit.service.InspectionService inspectionService;
 
     public AuditController(PrecheckService precheckService, RiskEventService riskEventService,
                            StatsService statsService, HashChainService chainService,
                            com.pcmvp.audit.service.GuaranteePrecheckService guaranteePrecheckService,
-                           com.pcmvp.audit.service.LeasePrecheckService leasePrecheckService) {
+                           com.pcmvp.audit.service.LeasePrecheckService leasePrecheckService,
+                           com.pcmvp.audit.service.InspectionService inspectionService) {
         this.precheckService = precheckService;
         this.riskEventService = riskEventService;
         this.statsService = statsService;
         this.chainService = chainService;
         this.guaranteePrecheckService = guaranteePrecheckService;
         this.leasePrecheckService = leasePrecheckService;
+        this.inspectionService = inspectionService;
     }
 
     /** 提交资产处置申报单并同步预审（返回申报单+意见单+命中明细） */
@@ -119,6 +122,22 @@ public class AuditController {
     @GetMapping("/api/precheck/feed")
     public List<Map<String, Object>> precheckFeed() {
         return statsService.feed();
+    }
+
+    /** 全量巡检：扫描已入库申报。scenario=all/asset/guarantee/lease */
+    @PostMapping("/api/inspections")
+    public Map<String, Object> inspect(@RequestParam(defaultValue = "all") String scenario) {
+        return inspectionService.run(scenario);
+    }
+
+    @GetMapping("/api/inspections")
+    public List<com.pcmvp.audit.domain.InspectionRun> inspections() {
+        return inspectionService.list();
+    }
+
+    @GetMapping("/api/inspections/{id}")
+    public Map<String, Object> inspection(@PathVariable Long id) {
+        return inspectionService.detail(id);
     }
 
     /** 哈希链全链校验（演示防篡改能力） */

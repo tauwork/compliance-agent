@@ -69,9 +69,10 @@ public class PrecheckSupport {
         return op;
     }
 
-    /** 带病提交→风险事件（幂等）+哈希链留痕 */
+    /** 带病提交→风险事件（幂等）+哈希链留痕。返回本次新写入的条数。 */
     @Transactional
-    public void createRiskEvents(String eventRef, String summary, Map<String, Object> fact, java.util.List<RuleHit> hits) {
+    public int createRiskEvents(String eventRef, String summary, Map<String, Object> fact, java.util.List<RuleHit> hits) {
+        int created = 0;
         for (RuleHit h : hits) {
             RiskEvent e = new RiskEvent();
             e.setEventRef(eventRef);
@@ -91,11 +92,18 @@ public class PrecheckSupport {
                     .eq(RiskEvent::getRuleCode, h.getCode()));
             if (exists == 0) {
                 riskMapper.insert(e);
+                created++;
                 chain.append(eventRef, "RISK_EVENT", "create",
                         e.getId() == null ? eventRef : String.valueOf(e.getId()),
                         Map.of("rule", h.getCode(), "severity", h.getSeverity()));
             }
         }
+        return created;
+    }
+
+    /** 命中明细 JSON，与预审意见单同一结构。 */
+    public String renderHitsJson(java.util.List<RuleHit> hits) {
+        return renderHits(hits);
     }
 
     /** 申报与预审两步哈希链留痕 */
