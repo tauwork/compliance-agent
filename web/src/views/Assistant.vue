@@ -21,8 +21,8 @@
       </div>
 
       <div style="display: flex; gap: 10px; margin-top: 16px">
-        <el-input v-model="question" placeholder="例如：资产转让什么情况下可以不进场交易？" @keyup.enter="ask" />
-        <el-button type="primary" :loading="loading" @click="ask">提问</el-button>
+        <el-input v-model="question" placeholder="例如：资产转让什么情况下可以不进场交易？" @keyup.enter="ask()" />
+        <el-button type="primary" :loading="loading" @click="ask()">提问</el-button>
       </div>
       <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap">
         <el-button v-for="q in quicks" :key="q" size="small" @click="ask(q)">{{ q }}</el-button>
